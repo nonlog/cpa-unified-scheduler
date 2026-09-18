@@ -87,7 +87,7 @@ func TestCommandCodeExplicitSelector(t *testing.T) {
 		Provider:   commandCodeProvider,
 		Candidates: candidates,
 		Options: pluginapi.SchedulerOptions{
-			Headers: http.Header{commandSelectorHeader: {"2"}},
+			Headers: selectorHeaders("2"),
 		},
 	}
 	got := a.pick(req)
@@ -142,4 +142,10 @@ func testCandidate(provider, id, keyID, group, strategy string) pluginapi.Schedu
 			"key_affinity_include_model":        "false",
 		},
 	}
+}
+
+func selectorHeaders(value string) http.Header {
+	h := make(http.Header)
+	h.Set(commandSelectorHeader, value)
+	return h
 }
