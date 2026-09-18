@@ -1,0 +1,50 @@
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: true
+      - name: Tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Format check
+        run: |
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files"
+            gofmt -d .
+            exit 1
+          fi
+      - name: Test
+        run: go test ./...
+      - name: Race detector
+        run: go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build CPA dynamic plugin
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=1 go build -buildmode=c-shared \
+            -o dist/cpa-unified-scheduler-v0.1.0.so \
+            ./cmd/cliproxy-plugin
+          nm -D dist/cpa-unified-scheduler-v0.1.0.so | grep ' cliproxy_plugin_init$'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpa-unified-scheduler-linux-amd64
+          path: |
+            dist/cpa-unified-scheduler-v0.1.0.so
+            dist/cpa-unified-scheduler-v0.1.0.h
