@@ -42,6 +42,41 @@ func TestQuotaExhaustionFromPayloadAvailable(t *testing.T) {
 	}
 }
 
+func TestQuotaExhaustionFromZeroUsableBalance(t *testing.T) {
+	payload := map[string]any{
+		"credits": map[string]any{
+			"monthlyCredits":   float64(0),
+			"purchasedCredits": float64(0),
+			"freeCredits":      float64(0),
+		},
+	}
+	exhausted, resetAt, ok := quotaExhaustionFromPayload(payload)
+	if !ok || !exhausted || resetAt != 0 {
+		t.Fatalf("expected zero balance exhaustion, got exhausted=%v resetAt=%d ok=%v", exhausted, resetAt, ok)
+	}
+}
+
+func TestQuotaExhaustionAllowsExtraCredits(t *testing.T) {
+	for name, credits := range map[string]map[string]any{
+		"purchased": {"monthlyCredits": float64(0), "purchasedCredits": 1.25, "freeCredits": float64(0)},
+		"free":      {"monthlyCredits": float64(0), "purchasedCredits": float64(0), "freeCredits": 0.5},
+	} {
+		t.Run(name, func(t *testing.T) {
+			exhausted, resetAt, ok := quotaExhaustionFromPayload(map[string]any{"credits": credits})
+			if !ok || exhausted || resetAt != 0 {
+				t.Fatalf("unexpected state exhausted=%v resetAt=%d ok=%v", exhausted, resetAt, ok)
+			}
+		})
+	}
+}
+
+func TestQuotaExhaustionMissingSignalsIsUnknown(t *testing.T) {
+	exhausted, resetAt, ok := quotaExhaustionFromPayload(map[string]any{"credits": map[string]any{"planId": "individual-go"}})
+	if ok || exhausted || resetAt != 0 {
+		t.Fatalf("unexpected state exhausted=%v resetAt=%d ok=%v", exhausted, resetAt, ok)
+	}
+}
+
 func TestStableAuthIndexMatchesCPA(t *testing.T) {
 	seed := "commandcode-provider:auth-v1:group:key"
 	sum := sha256.Sum256([]byte("auth_index_seed:" + seed))

@@ -375,37 +375,75 @@ func (q *quotaController) refresh(ctx context.Context, cfg commandProviderConfig
 }
 
 func quotaExhaustionFromPayload(payload map[string]any) (bool, int64, bool) {
-	windows, _ := payload["windowLimits"].(map[string]any)
-	if windows == nil {
-		return false, 0, false
-	}
-
 	found := false
 	exhausted := false
 	earliest := int64(0)
 
-	for _, name := range []string{"fiveHour", "weekly"} {
-		raw, ok := windows[name]
-		if !ok {
-			continue
+	if credits, _ := payload["credits"].(map[string]any); credits != nil {
+		balanceFound := false
+		balanceTotal := 0.0
+		for _, name := range []string{"monthlyCredits", "purchasedCredits", "freeCredits"} {
+			raw, exists := credits[name]
+			if !exists {
+				continue
+			}
+			value, ok := quotaNumber(raw)
+			if !ok {
+				continue
+			}
+			balanceFound = true
+			balanceTotal += value
 		}
-		window, _ := raw.(map[string]any)
-		if window == nil {
-			continue
+		if balanceFound {
+			found = true
+			if balanceTotal <= 0 {
+				exhausted = true
+			}
 		}
-		found = true
-		exceeded, _ := window["exceeded"].(bool)
-		if !exceeded {
-			continue
-		}
-		exhausted = true
-		reset := resetMillis(window["resetAt"])
-		if reset > 0 && (earliest == 0 || reset < earliest) {
-			earliest = reset
+	}
+
+	if windows, _ := payload["windowLimits"].(map[string]any); windows != nil {
+		for _, name := range []string{"fiveHour", "weekly"} {
+			raw, ok := windows[name]
+			if !ok {
+				continue
+			}
+			window, _ := raw.(map[string]any)
+			if window == nil {
+				continue
+			}
+			found = true
+			exceeded, _ := window["exceeded"].(bool)
+			if !exceeded {
+				continue
+			}
+			exhausted = true
+			reset := resetMillis(window["resetAt"])
+			if reset > 0 && (earliest == 0 || reset < earliest) {
+				earliest = reset
+			}
 		}
 	}
 
 	return exhausted, earliest, found
+}
+
+func quotaNumber(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case json.Number:
+		n, err := v.Float64()
+		return n, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func resetMillis(value any) int64 {
