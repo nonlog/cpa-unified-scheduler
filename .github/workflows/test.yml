@@ -39,12 +39,12 @@ jobs:
         run: |
           mkdir -p dist
           CGO_ENABLED=1 go build -buildmode=c-shared \
-            -o dist/cpa-unified-scheduler-v0.1.1.so \
+            -o dist/cpa-unified-scheduler-v0.1.2.so \
             ./cmd/cliproxy-plugin
-          nm -D dist/cpa-unified-scheduler-v0.1.1.so | grep ' cliproxy_plugin_init$'
+          nm -D dist/cpa-unified-scheduler-v0.1.2.so | grep ' cliproxy_plugin_init$'
       - uses: actions/upload-artifact@v4
         with:
           name: cpa-unified-scheduler-linux-amd64
           path: |
-            dist/cpa-unified-scheduler-v0.1.1.so
-            dist/cpa-unified-scheduler-v0.1.1.h
+            dist/cpa-unified-scheduler-v0.1.2.so
+            dist/cpa-unified-scheduler-v0.1.2.h

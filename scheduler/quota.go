@@ -378,10 +378,10 @@ func quotaExhaustionFromPayload(payload map[string]any) (bool, int64, bool) {
 	found := false
 	exhausted := false
 	earliest := int64(0)
+	balanceFound := false
+	balanceTotal := 0.0
 
 	if credits, _ := payload["credits"].(map[string]any); credits != nil {
-		balanceFound := false
-		balanceTotal := 0.0
 		for _, name := range []string{"monthlyCredits", "purchasedCredits", "freeCredits"} {
 			raw, exists := credits[name]
 			if !exists {
@@ -394,14 +394,9 @@ func quotaExhaustionFromPayload(payload map[string]any) (bool, int64, bool) {
 			balanceFound = true
 			balanceTotal += value
 		}
-		if balanceFound {
-			found = true
-			if balanceTotal <= 0 {
-				exhausted = true
-			}
-		}
 	}
 
+	windowFound := false
 	if windows, _ := payload["windowLimits"].(map[string]any); windows != nil {
 		for _, name := range []string{"fiveHour", "weekly"} {
 			raw, ok := windows[name]
@@ -412,6 +407,7 @@ func quotaExhaustionFromPayload(payload map[string]any) (bool, int64, bool) {
 			if window == nil {
 				continue
 			}
+			windowFound = true
 			found = true
 			exceeded, _ := window["exceeded"].(bool)
 			if !exceeded {
@@ -422,6 +418,13 @@ func quotaExhaustionFromPayload(payload map[string]any) (bool, int64, bool) {
 			if reset > 0 && (earliest == 0 || reset < earliest) {
 				earliest = reset
 			}
+		}
+	}
+
+	if balanceFound {
+		found = true
+		if !windowFound && balanceTotal <= 0 {
+			exhausted = true
 		}
 	}
 

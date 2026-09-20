@@ -56,6 +56,24 @@ func TestQuotaExhaustionFromZeroUsableBalance(t *testing.T) {
 	}
 }
 
+func TestQuotaZeroBalanceDoesNotOverrideHealthyWindows(t *testing.T) {
+	payload := map[string]any{
+		"credits": map[string]any{
+			"monthlyCredits":   float64(0),
+			"purchasedCredits": float64(0),
+			"freeCredits":      float64(0),
+		},
+		"windowLimits": map[string]any{
+			"fiveHour": map[string]any{"used": float64(1), "cap": float64(3), "exceeded": false},
+			"weekly":   map[string]any{"used": float64(2), "cap": float64(6), "exceeded": false},
+		},
+	}
+	exhausted, resetAt, ok := quotaExhaustionFromPayload(payload)
+	if !ok || exhausted || resetAt != 0 {
+		t.Fatalf("healthy windows must take precedence over zero balance: exhausted=%v resetAt=%d ok=%v", exhausted, resetAt, ok)
+	}
+}
+
 func TestQuotaExhaustionAllowsExtraCredits(t *testing.T) {
 	for name, credits := range map[string]map[string]any{
 		"purchased": {"monthlyCredits": float64(0), "purchasedCredits": 1.25, "freeCredits": float64(0)},

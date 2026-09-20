@@ -11,7 +11,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
 
-const PluginVersion = "0.1.1"
+const PluginVersion = "0.1.2"
 
 const (
 	commandCodeProvider = "commandcode"
