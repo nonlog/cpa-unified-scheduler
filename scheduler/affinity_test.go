@@ -150,7 +150,6 @@ func selectorHeaders(value string) http.Header {
 	return h
 }
 
-
 func TestRegistrationDoesNotExposeGlobalRequestInterceptor(t *testing.T) {
 	registration := pluginRegistration()
 	if !registration.Capabilities.Scheduler {
