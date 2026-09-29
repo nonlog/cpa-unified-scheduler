@@ -371,6 +371,7 @@ func affinityBindingKey(policy affinityPolicy, identity, model string) string {
 func deriveAffinityIdentity(metadata map[string]any, headers http.Header, body []byte, allowDerived bool, salt string) string {
 	keys := []string{
 		"execution_session_id",
+		"canonical_session_id",
 		"prompt_cache_key",
 		"session_id",
 		"conversation_id",
@@ -386,7 +387,10 @@ func deriveAffinityIdentity(metadata map[string]any, headers http.Header, body [
 
 	for _, key := range []string{
 		"Session-Id",
+		"Session_id",
 		"X-Session-Id",
+		"X-Session-Affinity",
+		"X-Parent-Session-Affinity",
 		"X-Claude-Code-Session-Id",
 		"X-Conversation-Id",
 		"X-Thread-Id",

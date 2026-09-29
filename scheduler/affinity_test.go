@@ -149,3 +149,71 @@ func selectorHeaders(value string) http.Header {
 	h.Set(commandSelectorHeader, value)
 	return h
 }
+
+
+func TestRegistrationDoesNotExposeGlobalRequestInterceptor(t *testing.T) {
+	registration := pluginRegistration()
+	if !registration.Capabilities.Scheduler {
+		t.Fatal("scheduler capability is disabled")
+	}
+	if registration.Capabilities.RequestInterceptor {
+		t.Fatal("request interceptor must stay disabled to avoid copying every model request body through the plugin ABI")
+	}
+	if !registration.Capabilities.RequestLifecyclePlugin {
+		t.Fatal("request lifecycle capability is required for affinity completion")
+	}
+}
+
+func TestPersonaLifecycleBindsFromCanonicalMetadataWithoutInterceptor(t *testing.T) {
+	adapter := New(nil)
+	candidates := []pluginapi.SchedulerAuthCandidate{
+		testCandidate(personaProvider, "persona-provider:auth-v2:g:1", "1", "g", "round-robin"),
+		testCandidate(personaProvider, "persona-provider:auth-v2:g:2", "2", "g", "round-robin"),
+	}
+	req := pluginapi.SchedulerPickRequest{
+		Provider: personaProvider,
+		Model:    "test-model",
+		Options: pluginapi.SchedulerOptions{
+			Metadata: map[string]any{"canonical_session_id": "header:persona-session-a"},
+		},
+		Candidates: candidates,
+	}
+
+	first, err := adapter.pick(req)
+	if err != nil {
+		t.Fatalf("cold pick failed: %v", err)
+	}
+	if !first.Handled || first.DelegateBuiltin != pluginapi.SchedulerBuiltinRoundRobin {
+		t.Fatalf("cold pick = %#v", first)
+	}
+
+	adapter.complete(pluginapi.RequestCompletion{
+		Model:       req.Model,
+		Outcome:     pluginapi.RequestCompletionSucceeded,
+		CompletedAt: time.Now(),
+		Metadata: map[string]any{
+			"selected_auth_id":       candidates[1].ID,
+			"selected_auth_provider": personaProvider,
+			"canonical_session_id":   "header:persona-session-a",
+		},
+	})
+
+	second, err := adapter.pick(req)
+	if err != nil {
+		t.Fatalf("bound pick failed: %v", err)
+	}
+	if !second.Handled || second.AuthID != candidates[1].ID {
+		t.Fatalf("lifecycle-only affinity did not bind selected auth: %#v", second)
+	}
+}
+
+func TestAffinityIdentityRecognizesPiSessionHeaders(t *testing.T) {
+	for _, header := range []string{"X-Session-Affinity", "X-Session-Id", "Session_id"} {
+		headers := make(http.Header)
+		headers.Set(header, "pi-session-a")
+		got := deriveAffinityIdentity(nil, headers, nil, false, "test-salt")
+		if got == "" {
+			t.Fatalf("%s did not produce an affinity identity", header)
+		}
+	}
+}

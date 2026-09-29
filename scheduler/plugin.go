@@ -11,7 +11,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
 
-const PluginVersion = "0.1.2"
+const PluginVersion = "0.1.3"
 
 const (
 	commandCodeProvider = "commandcode"
@@ -92,7 +92,7 @@ func pluginRegistration() registration {
 		},
 		Capabilities: registrationCapabilities{
 			Scheduler:              true,
-			RequestInterceptor:     true,
+			RequestInterceptor:     false,
 			RequestLifecyclePlugin: true,
 		},
 	}
